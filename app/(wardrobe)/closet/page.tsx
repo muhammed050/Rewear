@@ -43,9 +43,10 @@ export default function Closet() {
   async function save(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
+    setMessage("");
     try {
       const form = new FormData(e.currentTarget);
-      const item = garment.parse({
+      const parsed = garment.safeParse({
         ...Object.fromEntries(form),
         season: String(form.get("season") || "")
           .split(",")
@@ -57,6 +58,14 @@ export default function Closet() {
           .filter(Boolean),
         ai_confidence: 0,
       });
+      if (!parsed.success) {
+        const invalidCategory = parsed.error.issues.some(issue => issue.path[0] === "category");
+        setMessage(invalidCategory
+          ? "Please choose a clothing category from the list and try again."
+          : "Please check the item details and try again.");
+        return;
+      }
+      const item = parsed.data;
       if (edit) await request("/api/closet", "PATCH", { id: edit.id, item });
       else {
         const data = new FormData();
@@ -177,7 +186,7 @@ export default function Closet() {
         >
           <option value="all">All categories</option>
           {categories.map((c) => (
-            <option key={c}>{c}</option>
+            <option key={c} value={c}>{c}</option>
           ))}
         </select>
         <button
@@ -343,7 +352,7 @@ export default function Closet() {
                 Category
                 <select name="category" defaultValue={edit?.category || "tops"}>
                   {categories.map((c) => (
-                    <option key={c}>{c}</option>
+                    <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
               </label>
@@ -364,7 +373,7 @@ export default function Closet() {
                 Fit
                 <select name="fit" defaultValue={edit?.fit || "regular"}>
                   {["regular", "fitted", "oversized", "relaxed"].map((v) => (
-                    <option key={v}>{v}</option>
+                    <option key={v} value={v}>{v}</option>
                   ))}
                 </select>
               </label>
